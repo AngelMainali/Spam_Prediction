@@ -1,3 +1,5 @@
+
+"""
 import streamlit as st
 import pandas as pd
 import pickle
@@ -195,3 +197,243 @@ with tab1:
             st.markdown("---")
             st.info("**Disclaimer:** This model predicts spam/ham probabilistically. Analysis shows sentiment, readability, punctuation, and word patterns. Always verify messages asking for personal info, money, or codes.")
 
+"""
+
+
+
+# # working fine with LIME 
+# import streamlit as st
+# import pandas as pd
+# import pickle
+# import string
+# import re
+# import os
+# import nltk
+# import numpy as np
+# from nltk.corpus import stopwords
+# from nltk.stem.porter import PorterStemmer
+# from lime.lime_text import LimeTextExplainer
+# import streamlit.components.v1 as components
+
+# # ---------------- Setup ----------------
+# nltk.download('stopwords')
+# ps = PorterStemmer()
+# stop_words = set(stopwords.words('english'))
+
+# st.set_page_config(page_title="📩 SMS Spam Detector with XAI", layout="centered")
+# st.title("📩 SMS Spam Detector with Explainable AI (LIME)")
+
+# # ---------------- Helper Function ----------------
+# def transform_text(text):
+#     text = str(text).lower()
+#     text = re.findall(r'\b\w+\b', text)
+#     text = [i for i in text if i not in stop_words and i not in string.punctuation]
+#     text = [ps.stem(i) for i in text]
+#     return " ".join(text)
+
+# # ---------------- Load Model ----------------
+# MODEL_PATH = "C:/Users/Dell/Downloads/SpamEmailDetection/model.pkl"
+# VECTORIZER_PATH = "C:/Users/Dell/Downloads/SpamEmailDetection/vectorizer.pkl"
+
+# if not os.path.exists(MODEL_PATH) or not os.path.exists(VECTORIZER_PATH):
+#     st.warning("⚠️ Model or vectorizer not found. Please train and save them first.")
+# else:
+#     model = pickle.load(open(MODEL_PATH, 'rb'))
+#     tfidf = pickle.load(open(VECTORIZER_PATH, 'rb'))
+
+#     # ---------------- UI ----------------
+#     user_input = st.text_area("✉️ Enter your SMS message:")
+
+#     if st.button("Predict"):
+#         if user_input.strip() == "":
+#             st.warning("⚠️ Please enter a message first!")
+#         else:
+#             # Preprocess input
+#             transformed_msg = transform_text(user_input)
+#             vector_input = tfidf.transform([transformed_msg])
+#             prediction = model.predict(vector_input)[0]
+#             pred_proba = model.predict_proba(vector_input)[0]
+
+#             if prediction == 1:
+#                 st.error(f"🚨 This message is **Spam!** (Confidence: {pred_proba[1]*100:.2f}%)")
+#             else:
+#                 st.success(f"✅ This message is **Not Spam (Ham)** (Confidence: {pred_proba[0]*100:.2f}%)")
+
+#             st.subheader("🧠 Model Explanation")
+
+#             # ---------------- LIME EXPLANATION ----------------
+#             class_names = ['ham', 'spam']
+
+#             def predict_proba(texts):
+#                 X = tfidf.transform([transform_text(t) for t in texts])
+#                 return model.predict_proba(X)
+
+#             lime_explainer = LimeTextExplainer(class_names=class_names)
+#             lime_exp = lime_explainer.explain_instance(user_input, predict_proba, num_features=10)
+
+#             # Wrap LIME HTML in a white container for dark theme
+#             lime_html = lime_exp.as_html()
+#             lime_html = f"""
+#             <div style="background-color:white; padding:15px; border-radius:10px;">
+#             {lime_html}
+#             </div>
+#            """
+
+#             st.markdown("**LIME Explanation:**")
+#             components.html(lime_html, height=600)
+
+
+
+
+
+
+import streamlit as st
+import pandas as pd
+import pickle
+import string
+import re
+import os
+import nltk
+import numpy as np
+from nltk.corpus import stopwords
+from nltk.stem.porter import PorterStemmer
+from lime.lime_text import LimeTextExplainer
+import shap
+import streamlit.components.v1 as components
+import matplotlib.pyplot as plt
+
+# ---------------- Setup ----------------
+nltk.download('stopwords')
+ps = PorterStemmer()
+stop_words = set(stopwords.words('english'))
+
+st.set_page_config(page_title="📩 SMS Spam Detector with XAI", layout="centered")
+st.title("📩 SMS Spam Detector with Explainable AI (LIME + SHAP)")
+
+# ---------------- Helper Function ----------------
+def transform_text(text):
+    text = str(text).lower()
+    text = re.findall(r'\b\w+\b', text)
+    text = [i for i in text if i not in stop_words and i not in string.punctuation]
+    text = [ps.stem(i) for i in text]
+    return " ".join(text)
+
+# ---------------- Load Model ----------------
+MODEL_PATH = "C:/Users/Dell/Downloads/SpamEmailDetection/model.pkl"
+VECTORIZER_PATH = "C:/Users/Dell/Downloads/SpamEmailDetection/vectorizer.pkl"
+
+if not os.path.exists(MODEL_PATH) or not os.path.exists(VECTORIZER_PATH):
+    st.warning("⚠️ Model or vectorizer not found. Please train and save them first.")
+else:
+    model = pickle.load(open(MODEL_PATH, 'rb'))
+    tfidf = pickle.load(open(VECTORIZER_PATH, 'rb'))
+
+    # ---------------- UI ----------------
+    user_input = st.text_area("✉️ Enter your SMS message:")
+
+    if st.button("Predict"):
+        if user_input.strip() == "":
+            st.warning("⚠️ Please enter a message first!")
+        else:
+            # Preprocess input
+            transformed_msg = transform_text(user_input)
+            vector_input = tfidf.transform([transformed_msg])
+            prediction = model.predict(vector_input)[0]
+            pred_proba = model.predict_proba(vector_input)[0]
+
+            if prediction == 1:
+                st.error(f"🚨 This message is **Spam!** (Confidence: {pred_proba[1]*100:.2f}%)")
+            else:
+                st.success(f"✅ This message is **Not Spam (Ham)** (Confidence: {pred_proba[0]*100:.2f}%)")
+
+            st.subheader("🧠 Model Explanation")
+
+            # ---------------- LIME EXPLANATION ----------------
+            class_names = ['ham', 'spam']
+
+            def predict_proba(texts):
+                X = tfidf.transform([transform_text(t) for t in texts])
+                return model.predict_proba(X)
+
+            lime_explainer = LimeTextExplainer(class_names=class_names)
+            lime_exp = lime_explainer.explain_instance(user_input, predict_proba, num_features=10)
+
+            # Wrap LIME HTML in a white container for dark theme
+            lime_html = lime_exp.as_html()
+            lime_html = f"""
+            <div style="background-color:white; padding:15px; border-radius:10px;">
+            {lime_html}
+            </div>
+            """
+            st.markdown("**LIME Explanation:**")
+            components.html(lime_html, height=600)
+
+            # ---------------- SHAP EXPLANATION ----------------
+            st.subheader("🧠 SHAP Explanation (Local)")
+
+            # Wrap model + TF-IDF as callable function
+            def model_predict(texts):
+                X = tfidf.transform([transform_text(t) for t in texts])
+                return model.predict_proba(X)
+
+            # SHAP Text Explainer
+            explainer_text = shap.Explainer(model_predict, masker=shap.maskers.Text())
+            shap_values_text = explainer_text([user_input])
+
+          # ---------------- Word-level contributions ----------------
+            st.markdown("**Word-level contributions:**")
+
+            # Generate SHAP HTML for the text plot
+            shap_html = shap.plots.text(shap_values_text[0], display=False)  # returns HTML string
+
+            # Wrap in a white container for readability
+            shap_html_wrapped = f"""
+            <div style="background-color:white; padding:15px; border-radius:10px;">
+                {shap_html}
+            </div>
+            """
+
+            # Render in Streamlit
+            components.html(shap_html_wrapped, height=300)
+
+           # ---------------- Force plot for spam class (Static Matplotlib) ----------------
+   
+            shap_values_instance = shap_values_text.values[0][:, 1]  # spam class
+            words = shap_values_text.data[0]
+
+            force_expl = shap.Explanation(
+                values=shap_values_instance,
+                base_values=shap_values_text.base_values[0][1],
+                data=words,
+                feature_names=words
+            )
+
+            st.markdown("**Force Plot for Spam Class :**")
+
+            # Let SHAP generate its figure internally
+            fig_force = shap.plots.force(force_expl, matplotlib=True, show=False)  # returns the figure
+
+            # Pass the returned figure explicitly to Streamlit
+            st.pyplot(fig_force)
+            plt.close(fig_force) # Close the figure to avoid overlapping plots
+
+
+            # ---------------- Summary plot ----------------
+            shap_values_for_plot = shap_values_instance.reshape(1, -1)
+            st.markdown("**Summary Plot (Single Message):**")
+            fig_summary, ax = plt.subplots(figsize=(10, 4))
+            shap.summary_plot(
+                shap_values_for_plot,
+                features=[words],
+                feature_names=words,
+                plot_type='bar',
+                show=False
+            )
+            st.pyplot(fig_summary)
+            plt.close(fig_summary)
+
+           
+
+                    # ---------------- Global SHAP ----------------
+            st.subheader("🧠 SHAP Explanation (Global)")
+           
