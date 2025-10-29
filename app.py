@@ -435,5 +435,79 @@ else:
            
 
                     # ---------------- Global SHAP ----------------
-            st.subheader("🧠 SHAP Explanation (Global)")
-           
+            
+           # ---------------- SHAP GLOBAL EXPLANATION ----------------
+            st.subheader("🧠 SHAP Global Explanation (Entire Dataset)")
+
+            DATASET_PATH = "C:/Users/Dell/Downloads/SpamEmailDetection/spam.csv"
+
+            if os.path.exists(DATASET_PATH):
+                try:
+                    data_df = pd.read_csv(DATASET_PATH, encoding='latin-1')
+                    
+                    # Use only a subset for performance (e.g., first 500 samples)
+                    sample_size = min(500, len(data_df))
+                    data_sample = data_df.head(sample_size)
+                    
+                    texts = data_sample['v2'].apply(transform_text)
+                    X = tfidf.transform(texts)
+                    X_dense = X.toarray()
+                    
+                    # Use small samples to avoid memory issues
+                    background_size = 100
+                    explain_size = 300
+                    
+                    with st.spinner('Computing global SHAP explanations... (This may take a minute)'):
+                        # Convert to dense for the small subset only
+                        X_dense_small = X_dense[:background_size + explain_size]
+                        background = X_dense_small[:background_size]
+                        explain_data = X_dense_small[background_size:background_size + explain_size]
+                        
+                        explainer_global = shap.KernelExplainer(model.predict_proba, background)
+                        shap_values_global = explainer_global.shap_values(explain_data)
+                    
+                    # Handle SHAP values dimensions
+                    if isinstance(shap_values_global, list):
+                        shap_values_to_plot = shap_values_global[1]  # Use class 1 (spam)
+                    else:
+                        if len(shap_values_global.shape) == 3:
+                            shap_values_to_plot = shap_values_global[:, :, 1]  # Class 1 for binary
+                        else:
+                            shap_values_to_plot = shap_values_global
+                    
+                    # Calculate mean absolute SHAP values
+                    mean_abs_shap = np.mean(np.abs(shap_values_to_plot), axis=0)
+                    feature_names = tfidf.get_feature_names_out()
+                    
+                    # Get top 15 features
+                    top_indices = np.argsort(mean_abs_shap)[-15:][::-1]
+                    top_features = [feature_names[i] for i in top_indices]
+                    top_scores = mean_abs_shap[top_indices]
+                    
+                    # Create the plot
+                    fig, ax = plt.subplots(figsize=(12, 8))
+                    y_pos = np.arange(len(top_features))
+                    
+                    bars = ax.barh(y_pos, top_scores, color='#1f77b4')
+                    ax.set_yticks(y_pos)
+                    ax.set_yticklabels(top_features)
+                    ax.set_xlabel('Mean |SHAP value|')
+                    ax.set_title('Global SHAP Feature Importance - Top 15 Features')
+                    
+                    # Add value labels
+                    for i, bar in enumerate(bars):
+                        width = bar.get_width()
+                        ax.text(width + 0.001, bar.get_y() + bar.get_height()/2, 
+                                f'{width:.4f}', ha='left', va='center', fontsize=9)
+                    
+                    plt.tight_layout()
+                    st.pyplot(fig)
+                    plt.close(fig)
+                    
+                    st.success(f"Global SHAP analysis completed on {sample_size} samples!")
+                    
+                except Exception as e:
+                    st.error(f"Global SHAP computation failed: {str(e)}")
+                    st.info("This might be due to memory limitations. Try with a smaller dataset.")
+            else:
+                st.warning("Dataset not found for global explanations. Please ensure spam.csv is available.")
