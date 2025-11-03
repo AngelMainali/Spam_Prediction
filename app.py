@@ -19,7 +19,7 @@ ps = PorterStemmer()
 stop_words = set(stopwords.words('english'))
 
 st.set_page_config(page_title="📩 SMS Spam Detector with XAI", layout="centered")
-st.title("📩 SMS Spam Detector with Explainable AI (LIME + SHAP)")
+st.title("📩 Explainable SMS Spam Detector")
 
 # ---------------- Helper Function ----------------
 def transform_text(text):
@@ -30,8 +30,8 @@ def transform_text(text):
     return " ".join(text)
 
 # ---------------- Load Model ----------------
-MODEL_PATH = "C:/Users/Dell/Downloads/SpamEmailDetection/model.pkl"
-VECTORIZER_PATH = "C:/Users/Dell/Downloads/SpamEmailDetection/vectorizer.pkl"
+MODEL_PATH = "model.pkl"
+VECTORIZER_PATH = "vectorizer.pkl"
 
 if not os.path.exists(MODEL_PATH) or not os.path.exists(VECTORIZER_PATH):
     st.warning("⚠️ Model or vectorizer not found. Please train and save them first.")
@@ -65,7 +65,7 @@ else:
             st.subheader("🧠 Model Explanation")
 
             # ---------------- LIME LOCAL EXPLANATION ----------------
-            st.markdown("### 📊 LIME Local Explanation")
+            st.markdown("### 📊 LIME Explanation")
             
             class_names = ['ham', 'spam']
 
@@ -83,7 +83,7 @@ else:
             {lime_html}
             </div>
             """
-            st.markdown("**LIME Explanation:**")
+            
             components.html(lime_html, height=600)
 
             # ---------------- SHAP LOCAL EXPLANATION ----------------
@@ -97,7 +97,7 @@ else:
 
              # ---------------- Summary plot ----------------
             shap_values_for_plot = shap_values_instance.reshape(1, -1)
-            st.markdown("**Summary Plot (Single Message):**")
+            st.markdown("**Summary Plot:**")
             fig_summary, ax = plt.subplots(figsize=(10, 4))
             shap.summary_plot(
                 shap_values_for_plot,
@@ -169,8 +169,7 @@ else:
             # ---------------- HYBRID EXPLANATION (Built-in) ----------------
             st.subheader("🔗 Hybrid Explanation (LIME + SHAP)")
 
-            # Custom Hybrid Implementation
-            st.markdown("**Hybrid Feature Importance (LIME + SHAP Combined):**")
+            
 
             # Get LIME features
             lime_features = lime_exp.as_list()
@@ -264,7 +263,7 @@ else:
             plt.close(fig_stacked)
 
             # Plot 2: Hybrid Feature Importance (Individual bars)
-            st.markdown("**Hybrid Feature Importance (Combined Scores):**")
+            st.markdown("**Hybrid Feature Importance:**")
 
             fig_hybrid, ax = plt.subplots(figsize=(12, 6))
             colors = ['red' if imp > 0 else 'green' for imp in hybrid_weights]
@@ -292,9 +291,9 @@ else:
             st.success("✅ Hybrid explanation completed! Combines LIME and SHAP for more robust feature importance.")
 
             # ---------------- GLOBAL SHAP EXPLANATION ----------------
-            st.subheader("🌍 SHAP Global Explanation (Entire Dataset)")
+            st.subheader("🌍 SHAP Global Explanation")
 
-            DATASET_PATH = "C:/Users/Dell/Downloads/SpamEmailDetection/spam.csv"
+            DATASET_PATH = "spam.csv"
 
             if os.path.exists(DATASET_PATH):
                 try:
